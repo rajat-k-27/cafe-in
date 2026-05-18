@@ -61,7 +61,7 @@ export default function RootLayout({
             <div className="flex flex-wrap gap-3">
               <a
                 className="font-semibold text-amber-800 hover:text-amber-950"
-                href="https://github.com/rajat-k-27"
+                href="https://github.com/rajat-k-27/cafe-in"
                 target="_blank"
                 rel="noreferrer"
               >
