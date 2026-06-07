@@ -1,53 +1,31 @@
-import { NextRequest, NextResponse } from "next/server";
+"use server";
 
-import { requireUser } from "@/lib/auth";
+import { getSessionFromCookies } from "@/lib/auth";
 import { menuItemsCollection, parseObjectId } from "@/lib/menu-items";
 import { ordersCollection, serializeOrder } from "@/lib/orders";
 import { orderInputSchema } from "@/lib/validation";
 import { parseUserId } from "@/lib/users";
 
-export async function GET(request: NextRequest) {
-  const auth = await requireUser(request);
-  if (!auth.ok) {
-    return auth.response as NextResponse;
+export async function createOrderAction(formData: unknown) {
+  const session = await getSessionFromCookies();
+  if (!session) {
+    return { ok: false, message: "Unauthorized." };
   }
 
-  const session = auth.session!;
-  const userId = parseUserId(session.id);
-  if (!userId) {
-    return NextResponse.json({ message: "Invalid user." }, { status: 400 });
-  }
-
-  const collection = await ordersCollection();
-  const orders = await collection.find({ userId }).sort({ createdAt: -1 }).toArray();
-  return NextResponse.json({ orders: orders.map(serializeOrder) });
-}
-
-export async function POST(request: NextRequest) {
-  const auth = await requireUser(request);
-  if (!auth.ok) {
-    return auth.response as NextResponse;
-  }
-
-  const body = await request.json();
-  const parsed = orderInputSchema.safeParse(body);
+  const parsed = orderInputSchema.safeParse(formData);
 
   if (!parsed.success) {
-    return NextResponse.json(
-      { message: "Invalid order details.", issues: parsed.error.issues },
-      { status: 400 }
-    );
+    return { ok: false, message: parsed.error.issues[0]?.message || "Invalid order details." };
   }
 
-  const session = auth.session!;
   const userId = parseUserId(session.id);
   if (!userId) {
-    return NextResponse.json({ message: "Invalid user." }, { status: 400 });
+    return { ok: false, message: "Invalid user." };
   }
 
   const menuItemId = parseObjectId(parsed.data.menuItemId);
   if (!menuItemId) {
-    return NextResponse.json({ message: "Invalid menu item." }, { status: 400 });
+    return { ok: false, message: "Invalid menu item." };
   }
 
   const quantity = parsed.data.quantity;
@@ -63,10 +41,7 @@ export async function POST(request: NextRequest) {
   );
 
   if (!updated) {
-    return NextResponse.json(
-      { message: "This item is out of stock." },
-      { status: 400 }
-    );
+    return { ok: false, message: "This item is out of stock." };
   }
 
   const item = updated;
@@ -99,8 +74,8 @@ export async function POST(request: NextRequest) {
 
   const created = await collection.findOne({ _id: result.insertedId });
   if (!created) {
-    return NextResponse.json({ message: "Order created but not found." }, { status: 500 });
+    return { ok: false, message: "Order created but not found." };
   }
 
-  return NextResponse.json({ order: serializeOrder(created) }, { status: 201 });
+  return { ok: true, order: serializeOrder(created) };
 }

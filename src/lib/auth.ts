@@ -70,8 +70,27 @@ export function setSessionCookie(response: NextResponse, token: string) {
   });
 }
 
+export async function setSessionCookieServerAction(token: string) {
+  (await cookies()).set(COOKIE_NAME, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 60 * 60 * 24 * 7,
+  });
+}
+
 export function clearSessionCookie(response: NextResponse) {
   response.cookies.set(COOKIE_NAME, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
+}
+
+export async function clearSessionCookieServerAction() {
+  (await cookies()).set(COOKIE_NAME, "", {
     httpOnly: true,
     sameSite: "lax",
     path: "/",

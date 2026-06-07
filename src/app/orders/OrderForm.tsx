@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import type { ChangeEvent, FormEvent } from "react";
 import { useState, useTransition } from "react";
+import { createOrderAction } from "@/app/actions/orders";
 
 import type { MenuItem } from "@/lib/menu-items";
 
@@ -30,6 +31,7 @@ export default function OrderForm({ items }: OrderFormProps) {
     notes: "",
   });
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const selectedItem = items.find((item) => item.id === form.menuItemId);
@@ -44,28 +46,27 @@ export default function OrderForm({ items }: OrderFormProps) {
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
+    setSuccess(false);
 
     startTransition(async () => {
-      const response = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          menuItemId: form.menuItemId,
-          quantity: form.quantity,
-          address: form.address,
-          phone: form.phone,
-          notes: form.notes,
-        }),
+      const result = await createOrderAction({
+        menuItemId: form.menuItemId,
+        quantity: form.quantity,
+        address: form.address,
+        phone: form.phone,
+        notes: form.notes,
       });
 
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null);
-        setError(payload?.message || "Order failed.");
+      if (!result.ok) {
+        setError(result.message || "Order failed.");
         return;
       }
 
-      router.push("/orders");
-      router.refresh();
+      setSuccess(true);
+      setTimeout(() => {
+        router.push("/orders");
+        router.refresh();
+      }, 2000);
     });
   };
 
@@ -169,10 +170,16 @@ export default function OrderForm({ items }: OrderFormProps) {
         </p>
       )}
 
+      {success && (
+        <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900">
+          Your order has been successfully placed! Redirecting...
+        </div>
+      )}
+
       <div className="mt-6 flex flex-wrap items-center gap-3">
         <button
           type="submit"
-          disabled={isPending}
+          disabled={isPending || success}
           className="inline-flex items-center justify-center rounded-full bg-amber-800 px-6 py-3 text-sm font-semibold text-amber-50 shadow-md shadow-amber-900/20 transition hover:bg-amber-900 disabled:cursor-not-allowed disabled:opacity-70"
         >
           Place order

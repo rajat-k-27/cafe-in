@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import type { FormEvent } from "react";
 import { useState, useTransition } from "react";
+import { loginAction, registerAction } from "@/app/actions/auth";
 
 type AuthFormProps = {
   mode: "login" | "admin" | "register";
@@ -24,21 +25,15 @@ export default function AuthForm({ mode, title, description }: AuthFormProps) {
     setError(null);
 
     startTransition(async () => {
-      const endpoint = mode === "register" ? "/api/auth/register" : "/api/auth/login";
-      const payload =
-        mode === "register"
-          ? { email, password }
-          : { email, password, role: mode === "admin" ? "admin" : "user" };
+      let result;
+      if (mode === "register") {
+        result = await registerAction({ email, password });
+      } else {
+        result = await loginAction({ email, password, role: mode === "admin" ? "admin" : "user" });
+      }
 
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const body = await response.json().catch(() => null);
-        setError(body?.message || "Something went wrong.");
+      if (!result.ok) {
+        setError(result.message || "Something went wrong.");
         return;
       }
 
@@ -85,7 +80,9 @@ export default function AuthForm({ mode, title, description }: AuthFormProps) {
             id="password"
             type="password"
             value={password}
-            onChange={(event) => setPassword(event.target.value)}
+            onChange={(event) => {
+              setPassword(event.target.value)
+            }}
             required
             className="mt-2 w-full rounded-2xl border border-amber-100 bg-white px-4 py-3 text-sm text-amber-950 outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-200"
           />
